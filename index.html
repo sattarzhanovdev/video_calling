@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Видеозвонок в стиле Телеграма</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video>
+
+    <div id="incoming-call" class="hidden">
+      <p>📞 Входящий звонок</p>
+      <div class="buttons">
+        <button id="acceptBtn" class="btn accept" title="Принять звонок">
+          ✓
+        </button>
+        <button id="declineBtn" class="btn decline" title="Отклонить звонок">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <div id="call-controls" class="hidden">
+      <input id="peer-id" placeholder="Введите ID собеседника" />
+      <button id="callBtn">Позвонить</button>
+      <p>Твой ID: <span id="my-id">...</span></p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
