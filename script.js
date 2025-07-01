@@ -11,27 +11,31 @@ const callBtn = document.getElementById("callBtn");
 let localStream = null;
 let currentCall = null;
 
-// Создаём peer-соединение
-const peer = new Peer();
+// ✅ Подключение к публичному PeerJS серверу (стабильному)
+const peer = new Peer(undefined, {
+  host: '0.peerjs.com',
+  port: 443,
+  path: '/',
+  secure: true,
+});
 
 peer.on("open", id => {
   myIdSpan.innerText = id;
   callControls.classList.remove("hidden");
 });
 
-// Получение входящего звонка
+// 📞 Входящий звонок
 peer.on("call", call => {
   currentCall = call;
   incomingCallDiv.classList.remove("hidden");
   callControls.classList.add("hidden");
 });
 
-// Принятие звонка
+// ✅ Принять звонок
 acceptBtn.onclick = () => {
   if (localStream) {
     answerCall(localStream);
   } else {
-    // Запрос разрешений после нажатия
     navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 1280 },
@@ -57,7 +61,7 @@ function answerCall(stream) {
   incomingCallDiv.classList.add("hidden");
 }
 
-// Отклонение звонка
+// ❌ Отклонить звонок
 declineBtn.onclick = () => {
   if (currentCall) {
     currentCall.close();
@@ -67,7 +71,7 @@ declineBtn.onclick = () => {
   callControls.classList.remove("hidden");
 };
 
-// Исходящий звонок
+// 📤 Сделать звонок
 callBtn.onclick = () => {
   const peerId = peerIdInput.value.trim();
   if (!peerId) {
@@ -75,7 +79,6 @@ callBtn.onclick = () => {
     return;
   }
 
-  // Запрос камеры/микрофона при исходящем вызове
   if (localStream) {
     makeCall(peerId, localStream);
   } else {
