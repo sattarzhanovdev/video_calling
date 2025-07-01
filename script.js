@@ -8,50 +8,56 @@ const acceptBtn = document.getElementById("acceptBtn");
 const declineBtn = document.getElementById("declineBtn");
 const callBtn = document.getElementById("callBtn");
 
-let localStream;
+let localStream = null;
 let currentCall = null;
 
-navigator.mediaDevices.getUserMedia({
-  video: {
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-    frameRate: { ideal: 30 }
-  },
-  audio: true
-}).then(stream => {
-  localVideo.srcObject = stream;
-  localStream = stream;
-  callControls.classList.remove("hidden");
-}).catch(err => {
-  alert("Ошибка доступа к камере/микрофону: " + err.message);
-});
-
+// Создаём peer-соединение
 const peer = new Peer();
 
 peer.on("open", id => {
   myIdSpan.innerText = id;
+  callControls.classList.remove("hidden");
 });
 
-// Когда приходит звонок
+// Получение входящего звонка
 peer.on("call", call => {
   currentCall = call;
   incomingCallDiv.classList.remove("hidden");
   callControls.classList.add("hidden");
 });
 
-// Нажатие "Принять"
+// Принятие звонка
 acceptBtn.onclick = () => {
-  if (currentCall && localStream) {
-    currentCall.answer(localStream);
-    currentCall.on("stream", remoteStream => {
-      remoteVideo.srcObject = remoteStream;
+  if (localStream) {
+    answerCall(localStream);
+  } else {
+    // Запрос разрешений после нажатия
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      },
+      audio: true
+    }).then(stream => {
+      localStream = stream;
+      localVideo.srcObject = stream;
+      answerCall(stream);
+    }).catch(err => {
+      alert("Ошибка доступа к камере/микрофону: " + err.message);
     });
-    incomingCallDiv.classList.add("hidden");
-    callControls.classList.add("hidden");
   }
 };
 
-// Нажатие "Отклонить"
+function answerCall(stream) {
+  currentCall.answer(stream);
+  currentCall.on("stream", remoteStream => {
+    remoteVideo.srcObject = remoteStream;
+  });
+  incomingCallDiv.classList.add("hidden");
+}
+
+// Отклонение звонка
 declineBtn.onclick = () => {
   if (currentCall) {
     currentCall.close();
@@ -61,16 +67,39 @@ declineBtn.onclick = () => {
   callControls.classList.remove("hidden");
 };
 
-// Нажатие "Позвонить"
+// Исходящий звонок
 callBtn.onclick = () => {
   const peerId = peerIdInput.value.trim();
   if (!peerId) {
     alert("Введите ID собеседника");
     return;
   }
-  const call = peer.call(peerId, localStream);
+
+  // Запрос камеры/микрофона при исходящем вызове
+  if (localStream) {
+    makeCall(peerId, localStream);
+  } else {
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
+      },
+      audio: true
+    }).then(stream => {
+      localStream = stream;
+      localVideo.srcObject = stream;
+      makeCall(peerId, stream);
+    }).catch(err => {
+      alert("Ошибка доступа к камере/микрофону: " + err.message);
+    });
+  }
+};
+
+function makeCall(peerId, stream) {
+  const call = peer.call(peerId, stream);
   call.on("stream", remoteStream => {
     remoteVideo.srcObject = remoteStream;
   });
   callControls.classList.add("hidden");
-};
+}
