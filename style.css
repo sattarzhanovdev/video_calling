@@ -107,7 +107,7 @@ video#localVideo {
 /* Панель вызова (ввод ID и кнопка) */
 #call-controls {
   position: absolute;
-  bottom: 30px;
+  bottom: 300px;
   left: 50%;
   transform: translateX(-50%);
   width: 90vw;
