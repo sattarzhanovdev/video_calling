@@ -2,23 +2,81 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>WebRTC с PeerJS без сервера</title>
+  <title>WebRTC видеозвонок с PeerJS на Netlify</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #222; color: #eee; text-align: center; padding: 20px; }
-    video { width: 45vw; max-width: 300px; background: black; margin: 10px; }
-    input, button { padding: 10px; margin: 5px; font-size: 1rem; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #222;
+      color: #eee;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    video {
+      width: 45vw;
+      max-width: 300px;
+      background: black;
+      margin: 10px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+    input {
+      width: 200px;
+      text-align: center;
+    }
+    button {
+      background: #4a90e2;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #357abd;
+    }
+    #videos {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    @media(max-width: 600px) {
+      video {
+        width: 90vw;
+        max-width: none;
+      }
+      input {
+        width: 70vw;
+      }
+    }
   </style>
 </head>
 <body>
-  <h2>Видеозвонок с PeerJS</h2>
+  <h2>WebRTC видеозвонок с PeerJS</h2>
   <div>
-    <label>Ваш ID: <span id="myId">загрузка...</span></label>
+    <div>Ваш ID: <span id="myId">загрузка...</span></div>
+    <input id="callIdInput" placeholder="Введите ID собеседника" autocomplete="off" />
+    <button id="callBtn">Позвонить</button>
   </div>
-  <input id="callIdInput" placeholder="ID собеседника" />
-  <button id="callBtn">Позвонить</button>
-  <div>
-    <video id="localVideo" autoplay muted></video>
-    <video id="remoteVideo" autoplay></video>
+  <div id="videos">
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
@@ -30,38 +88,59 @@
     const myIdSpan = document.getElementById('myId');
 
     let localStream;
-    const peer = new Peer(); // использует публичный сервер PeerJS
-
+    const peer = new Peer(undefined, {
+      host: '0.peerjs.com',
+      secure: true,
+      port: 443,
+      path: '/'
+    });
     peer.on('open', id => {
       myIdSpan.textContent = id;
       console.log('Мой Peer ID:', id);
     });
 
     peer.on('call', call => {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream;
-        localVideo.srcObject = stream;
-        call.answer(stream);
-
-        call.on('stream', remoteStream => {
-          remoteVideo.srcObject = remoteStream;
+      console.log('Входящий звонок от', call.peer);
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          localStream = stream;
+          localVideo.srcObject = stream;
+          call.answer(stream);
+          call.on('stream', remoteStream => {
+            remoteVideo.srcObject = remoteStream;
+          });
+        })
+        .catch(err => {
+          alert('Ошибка доступа к камере/микрофону: ' + err);
+          console.error(err);
         });
-      });
     });
 
     callBtn.onclick = () => {
       const callId = callIdInput.value.trim();
-      if (!callId) return alert('Введите ID для звонка');
+      if (!callId) {
+        alert('Введите ID для звонка');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          localStream = stream;
+          localVideo.srcObject = stream;
 
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-        localStream = stream;
-        localVideo.srcObject = stream;
+          const call = peer.call(callId, stream);
+          call.on('stream', remoteStream => {
+            remoteVideo.srcObject = remoteStream;
+          });
 
-        const call = peer.call(callId, stream);
-        call.on('stream', remoteStream => {
-          remoteVideo.srcObject = remoteStream;
+          call.on('error', err => {
+            alert('Ошибка звонка: ' + err);
+            console.error(err);
+          });
+        })
+        .catch(err => {
+          alert('Ошибка доступа к камере/микрофону: ' + err);
+          console.error(err);
         });
-      });
     };
   </script>
 </body>
