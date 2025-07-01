@@ -16,10 +16,12 @@ body, html {
 
 #app {
   position: relative;
-  width: 360px;
-  height: 640px;
+  width: 100vw;
+  height: 100vh;
+  max-width: 420px;
+  max-height: 720px;
   background: #1e2124;
-  border-radius: 20px;
+  border-radius: 0; /* убрал радиус для мобильного */
   overflow: hidden;
   box-shadow: 0 0 30px rgba(0,0,0,0.7);
   display: flex;
@@ -32,52 +34,50 @@ video#remoteVideo {
   height: 100%;
   object-fit: cover;
   background: black;
-  border-radius: 20px;
-  transform: rotateY(180deg);
+  border-radius: 0;
 }
 
 video#localVideo {
   position: absolute;
   bottom: 120px;
   right: 15px;
-  width: 100px;
-  height: 140px;
+  width: 90px;
+  height: 120px;
   border-radius: 15px;
   object-fit: cover;
   border: 3px solid #7289da;
   box-shadow: 0 0 15px #7289da;
-  transform: rotateY(180deg);
+  z-index: 10;
 }
 
 #incoming-call {
   position: absolute;
-  bottom: 30px;
+  bottom: 20px;
   width: 100%;
   text-align: center;
   background: rgba(44, 47, 51, 0.85);
   padding: 15px 0;
-  border-radius: 0 0 20px 20px;
   backdrop-filter: blur(10px);
 }
 
 #incoming-call p {
-  font-size: 1.3em;
+  font-size: 1.4em;
   margin: 0 0 10px 0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .buttons {
   display: flex;
   justify-content: center;
-  gap: 40px;
+  gap: 30px;
 }
 
 .btn {
   border: none;
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
-  font-size: 28px;
+  font-size: 32px;
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease;
@@ -86,21 +86,24 @@ video#localVideo {
   align-items: center;
   box-shadow: 0 0 12px rgba(0,0,0,0.3);
   user-select: none;
+  touch-action: manipulation;
 }
 
 .btn.accept {
-  background: #43b581; /* зелёный */
+  background: #43b581;
 }
 
-.btn.accept:hover {
+.btn.accept:hover,
+.btn.accept:active {
   background: #3aa76d;
 }
 
 .btn.decline {
-  background: #f04747; /* красный */
+  background: #f04747;
 }
 
-.btn.decline:hover {
+.btn.decline:hover,
+.btn.decline:active {
   background: #c63737;
 }
 
@@ -114,18 +117,18 @@ video#localVideo {
 
 #peer-id {
   width: 100%;
-  padding: 10px;
-  font-size: 16px;
+  padding: 14px;
+  font-size: 18px;
   border-radius: 10px;
   border: none;
-  margin-bottom: 12px;
+  margin-bottom: 15px;
   outline: none;
 }
 
 #callBtn {
-  padding: 12px;
-  font-size: 18px;
-  border-radius: 12px;
+  padding: 15px;
+  font-size: 20px;
+  border-radius: 15px;
   background-color: #7289da;
   border: none;
   color: white;
@@ -134,10 +137,30 @@ video#localVideo {
   width: 100%;
 }
 
-#callBtn:hover {
+#callBtn:hover,
+#callBtn:active {
   background-color: #5b6eae;
 }
 
 .hidden {
   display: none;
+}
+
+/* Для маленьких экранов — увеличиваем отступы */
+@media (max-width: 400px) {
+  video#localVideo {
+    width: 70px;
+    height: 100px;
+    bottom: 100px;
+    right: 10px;
+  }
+  .btn {
+    width: 60px;
+    height: 60px;
+    font-size: 26px;
+  }
+  #callBtn {
+    font-size: 18px;
+    padding: 12px;
+  }
 }
