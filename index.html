@@ -2,34 +2,107 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Видеозвонок в стиле Телеграма</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebRTC по ID комнаты (без сервера)</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #eee; text-align: center; padding: 10px; }
+    video { width: 45vw; max-width: 300px; background: black; margin: 10px; }
+    textarea { width: 90%; height: 120px; margin: 10px 0; background: #333; color: #eee; border: none; padding: 8px; }
+    button { padding: 10px 20px; margin: 10px 5px; font-size: 1rem; cursor: pointer; }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" autoplay muted playsinline></video>
+  <h2>WebRTC по ID комнаты (без сервера)</h2>
+  <video id="localVideo" autoplay muted></video>
+  <video id="remoteVideo" autoplay></video>
 
-    <div id="incoming-call" class="hidden">
-      <p>📞 Входящий звонок</p>
-      <div class="buttons">
-        <button id="acceptBtn" class="btn accept" title="Принять звонок">
-          ✓
-        </button>
-        <button id="declineBtn" class="btn decline" title="Отклонить звонок">
-          ✕
-        </button>
-      </div>
-    </div>
-
-    <div id="call-controls" class="hidden">
-      <input id="peer-id" placeholder="Введите ID собеседника" />
-      <button id="callBtn">Позвонить</button>
-      <p>Твой ID: <span id="my-id">...</span></p>
-    </div>
+  <div>
+    <button id="createRoomBtn">Создать комнату</button>
+    <button id="joinRoomBtn">Войти в комнату</button>
   </div>
 
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="script.js"></script>
+  <textarea id="signalData" placeholder="Здесь вставляйте offer/answer"></textarea>
+
+  <script>
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const signalData = document.getElementById('signalData');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+
+    let pc;
+    let localStream;
+    let roomId;
+
+    async function startLocalStream() {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+    }
+
+    function createPeerConnection() {
+      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+      pc.onicecandidate = event => {
+        if (event.candidate === null) {
+          signalData.value = JSON.stringify(pc.localDescription);
+        }
+      };
+
+      pc.ontrack = event => {
+        remoteVideo.srcObject = event.streams[0];
+      };
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    }
+
+    createRoomBtn.onclick = async () => {
+      roomId = prompt("Введите ID комнаты для создания (например: 1234)");
+      if (!roomId) return alert("Введите ID комнаты");
+
+      await startLocalStream();
+      createPeerConnection();
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      alert(`Комната создана с ID: ${roomId}\nСкопируйте offer из текстового поля и отправьте собеседнику.`);
+    };
+
+    joinRoomBtn.onclick = async () => {
+      roomId = prompt("Введите ID комнаты для входа");
+      if (!roomId) return alert("Введите ID комнаты");
+
+      await startLocalStream();
+      createPeerConnection();
+
+      let offer;
+      try {
+        offer = JSON.parse(signalData.value);
+      } catch {
+        return alert("Вставьте корректный offer в текстовое поле");
+      }
+
+      await pc.setRemoteDescription(offer);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      signalData.value = JSON.stringify(pc.localDescription);
+
+      alert(`Вы вошли в комнату ${roomId}. Скопируйте answer и отправьте создателю комнаты.`);
+    };
+
+    // Первый пользователь вставляет answer сюда, чтобы установить соединение:
+    signalData.addEventListener('input', async () => {
+      if (!pc || !pc.localDescription) return;
+      try {
+        const data = JSON.parse(signalData.value);
+        if (data.type === 'answer' && pc.signalingState === 'have-local-offer') {
+          await pc.setRemoteDescription(data);
+          alert("Ответ получен, соединение установлено!");
+        }
+      } catch {}
+    });
+  </script>
 </body>
 </html>
