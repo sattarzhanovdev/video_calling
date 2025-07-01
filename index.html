@@ -2,107 +2,67 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebRTC по ID комнаты (без сервера)</title>
+  <title>WebRTC с PeerJS без сервера</title>
   <style>
-    body { font-family: sans-serif; background: #222; color: #eee; text-align: center; padding: 10px; }
+    body { font-family: Arial, sans-serif; background: #222; color: #eee; text-align: center; padding: 20px; }
     video { width: 45vw; max-width: 300px; background: black; margin: 10px; }
-    textarea { width: 90%; height: 120px; margin: 10px 0; background: #333; color: #eee; border: none; padding: 8px; }
-    button { padding: 10px 20px; margin: 10px 5px; font-size: 1rem; cursor: pointer; }
+    input, button { padding: 10px; margin: 5px; font-size: 1rem; }
   </style>
 </head>
 <body>
-  <h2>WebRTC по ID комнаты (без сервера)</h2>
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
-
+  <h2>Видеозвонок с PeerJS</h2>
   <div>
-    <button id="createRoomBtn">Создать комнату</button>
-    <button id="joinRoomBtn">Войти в комнату</button>
+    <label>Ваш ID: <span id="myId">загрузка...</span></label>
+  </div>
+  <input id="callIdInput" placeholder="ID собеседника" />
+  <button id="callBtn">Позвонить</button>
+  <div>
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
   </div>
 
-  <textarea id="signalData" placeholder="Здесь вставляйте offer/answer"></textarea>
-
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <script>
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
-    const signalData = document.getElementById('signalData');
-    const createRoomBtn = document.getElementById('createRoomBtn');
-    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const callIdInput = document.getElementById('callIdInput');
+    const callBtn = document.getElementById('callBtn');
+    const myIdSpan = document.getElementById('myId');
 
-    let pc;
     let localStream;
-    let roomId;
+    const peer = new Peer(); // использует публичный сервер PeerJS
 
-    async function startLocalStream() {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = localStream;
-    }
-
-    function createPeerConnection() {
-      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-
-      pc.onicecandidate = event => {
-        if (event.candidate === null) {
-          signalData.value = JSON.stringify(pc.localDescription);
-        }
-      };
-
-      pc.ontrack = event => {
-        remoteVideo.srcObject = event.streams[0];
-      };
-
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    }
-
-    createRoomBtn.onclick = async () => {
-      roomId = prompt("Введите ID комнаты для создания (например: 1234)");
-      if (!roomId) return alert("Введите ID комнаты");
-
-      await startLocalStream();
-      createPeerConnection();
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      alert(`Комната создана с ID: ${roomId}\nСкопируйте offer из текстового поля и отправьте собеседнику.`);
-    };
-
-    joinRoomBtn.onclick = async () => {
-      roomId = prompt("Введите ID комнаты для входа");
-      if (!roomId) return alert("Введите ID комнаты");
-
-      await startLocalStream();
-      createPeerConnection();
-
-      let offer;
-      try {
-        offer = JSON.parse(signalData.value);
-      } catch {
-        return alert("Вставьте корректный offer в текстовое поле");
-      }
-
-      await pc.setRemoteDescription(offer);
-
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      signalData.value = JSON.stringify(pc.localDescription);
-
-      alert(`Вы вошли в комнату ${roomId}. Скопируйте answer и отправьте создателю комнаты.`);
-    };
-
-    // Первый пользователь вставляет answer сюда, чтобы установить соединение:
-    signalData.addEventListener('input', async () => {
-      if (!pc || !pc.localDescription) return;
-      try {
-        const data = JSON.parse(signalData.value);
-        if (data.type === 'answer' && pc.signalingState === 'have-local-offer') {
-          await pc.setRemoteDescription(data);
-          alert("Ответ получен, соединение установлено!");
-        }
-      } catch {}
+    peer.on('open', id => {
+      myIdSpan.textContent = id;
+      console.log('Мой Peer ID:', id);
     });
+
+    peer.on('call', call => {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+        localStream = stream;
+        localVideo.srcObject = stream;
+        call.answer(stream);
+
+        call.on('stream', remoteStream => {
+          remoteVideo.srcObject = remoteStream;
+        });
+      });
+    });
+
+    callBtn.onclick = () => {
+      const callId = callIdInput.value.trim();
+      if (!callId) return alert('Введите ID для звонка');
+
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+        localStream = stream;
+        localVideo.srcObject = stream;
+
+        const call = peer.call(callId, stream);
+        call.on('stream', remoteStream => {
+          remoteVideo.srcObject = remoteStream;
+        });
+      });
+    };
   </script>
 </body>
 </html>
