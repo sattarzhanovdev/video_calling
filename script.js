@@ -11,98 +11,87 @@ const callBtn = document.getElementById("callBtn");
 let localStream = null;
 let currentCall = null;
 
-// ✅ Подключение к публичному PeerJS серверу (стабильному)
+// ✅ Подключение к рабочему PeerJS-серверу
 const peer = new Peer(undefined, {
   host: '0.peerjs.com',
   port: 443,
   path: '/',
-  secure: true,
+  secure: true
 });
 
 peer.on("open", id => {
+  console.log("My peer ID:", id);
   myIdSpan.innerText = id;
   callControls.classList.remove("hidden");
 });
 
-// 📞 Входящий звонок
+// 📥 Входящий звонок
 peer.on("call", call => {
+  console.log("📥 Incoming call from", call.peer);
   currentCall = call;
   incomingCallDiv.classList.remove("hidden");
   callControls.classList.add("hidden");
 });
 
 // ✅ Принять звонок
-acceptBtn.onclick = () => {
-  if (localStream) {
-    answerCall(localStream);
-  } else {
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30 }
-      },
+acceptBtn.onclick = async () => {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
       audio: true
-    }).then(stream => {
-      localStream = stream;
-      localVideo.srcObject = stream;
-      answerCall(stream);
-    }).catch(err => {
-      alert("Ошибка доступа к камере/микрофону: " + err.message);
     });
+    localVideo.srcObject = localStream;
+    currentCall.answer(localStream);
+    currentCall.on("stream", remoteStream => {
+      console.log("📡 Получен поток собеседника");
+      remoteVideo.srcObject = remoteStream;
+    });
+    currentCall.on("close", () => {
+      console.log("🔕 Вызов завершён");
+    });
+    incomingCallDiv.classList.add("hidden");
+  } catch (err) {
+    alert("Ошибка доступа к камере/микрофону: " + err.message);
   }
 };
 
-function answerCall(stream) {
-  currentCall.answer(stream);
-  currentCall.on("stream", remoteStream => {
-    remoteVideo.srcObject = remoteStream;
-  });
-  incomingCallDiv.classList.add("hidden");
-}
-
-// ❌ Отклонить звонок
+// ❌ Отклонить
 declineBtn.onclick = () => {
-  if (currentCall) {
-    currentCall.close();
-    currentCall = null;
-  }
+  if (currentCall) currentCall.close();
   incomingCallDiv.classList.add("hidden");
   callControls.classList.remove("hidden");
 };
 
-// 📤 Сделать звонок
-callBtn.onclick = () => {
+// 📤 Исходящий звонок
+callBtn.onclick = async () => {
   const peerId = peerIdInput.value.trim();
-  if (!peerId) {
-    alert("Введите ID собеседника");
-    return;
-  }
+  if (!peerId) return alert("Введите ID");
 
-  if (localStream) {
-    makeCall(peerId, localStream);
-  } else {
-    navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30 }
-      },
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
       audio: true
-    }).then(stream => {
-      localStream = stream;
-      localVideo.srcObject = stream;
-      makeCall(peerId, stream);
-    }).catch(err => {
-      alert("Ошибка доступа к камере/микрофону: " + err.message);
     });
+    localVideo.srcObject = localStream;
+
+    const call = peer.call(peerId, localStream);
+    currentCall = call;
+
+    call.on("stream", remoteStream => {
+      console.log("📡 Получен поток собеседника");
+      remoteVideo.srcObject = remoteStream;
+    });
+
+    call.on("error", err => {
+      console.error("Ошибка вызова:", err);
+    });
+
+    call.on("close", () => {
+      console.log("🔕 Вызов завершён");
+    });
+
+    callControls.classList.add("hidden");
+  } catch (err) {
+    alert("Ошибка доступа к камере/микрофону: " + err.message);
   }
 };
-
-function makeCall(peerId, stream) {
-  const call = peer.call(peerId, stream);
-  call.on("stream", remoteStream => {
-    remoteVideo.srcObject = remoteStream;
-  });
-  callControls.classList.add("hidden");
-}
